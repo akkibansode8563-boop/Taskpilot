@@ -134,7 +134,7 @@ export default function ProductsPage() {
                     )}
                     <div>
                       <p className="text-muted-foreground">Orders</p>
-                      <p className="font-medium">{product._count.orderItems}</p>
+                      <p className="font-medium">{product._count?.orderItems || 0}</p>
                     </div>
                   </div>
 

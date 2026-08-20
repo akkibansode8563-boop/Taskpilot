@@ -213,10 +213,10 @@ export default function ProductDetailPage() {
       {/* Order History */}
       <Card>
         <CardHeader>
-          <CardTitle>Order History ({product._count.orderItems})</CardTitle>
+          <CardTitle>Order History ({product._count?.orderItems || 0})</CardTitle>
         </CardHeader>
         <CardContent>
-          {product.orderItems.length === 0 ? (
+          {!product.orderItems || product.orderItems.length === 0 ? (
             <p className="text-muted-foreground text-center py-4">
               No orders include this product yet
             </p>
