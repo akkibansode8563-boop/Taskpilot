@@ -7,6 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+
 interface ServiceTicket {
   id: string;
   customerName: string;
@@ -38,6 +46,12 @@ export default function ServicePage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
+  const [showModal, setShowModal] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [complaint, setComplaint] = useState("");
+  const [priority, setPriority] = useState("HIGH");
+  const [engineer, setEngineer] = useState("");
+
   useEffect(() => {
     fetchTickets();
   }, [searchQuery]);
@@ -59,6 +73,35 @@ export default function ServicePage() {
     }
   }
 
+  const handleCreateTicket = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerName.trim()) return;
+
+    try {
+      const res = await fetch("/api/service-tickets", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          complaint: complaint || null,
+          priority,
+          engineer: engineer || null,
+          status: "OPEN",
+        }),
+      });
+
+      if (res.ok) {
+        setShowModal(false);
+        setCustomerName("");
+        setComplaint("");
+        setEngineer("");
+        fetchTickets();
+      }
+    } catch (err) {
+      console.error("Failed to create ticket:", err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -66,7 +109,7 @@ export default function ServicePage() {
           <h1 className="text-2xl font-bold tracking-tight">Service</h1>
           <p className="text-muted-foreground">Track complaints and service visits</p>
         </div>
-        <Button className="gap-1.5">
+        <Button onClick={() => setShowModal(true)} className="gap-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl active:scale-95 spring-transition">
           <Plus className="w-4 h-4" />
           New Ticket
         </Button>
@@ -129,6 +172,50 @@ export default function ServicePage() {
           ))
         )}
       </div>
+
+      {/* New Service Ticket Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Create New Service Ticket</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateTicket} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Customer Name *</Label>
+              <Input
+                placeholder="e.g. ABC Corporation"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Complaint / Issue Details</Label>
+              <Input
+                placeholder="e.g. LED panel light flickering in conference room"
+                value={complaint}
+                onChange={(e) => setComplaint(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Assigned Engineer</Label>
+              <Input
+                placeholder="e.g. Ravi Kumar"
+                value={engineer}
+                onChange={(e) => setEngineer(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-500 text-white font-bold">
+                Save Ticket
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

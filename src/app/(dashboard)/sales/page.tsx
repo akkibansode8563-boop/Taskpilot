@@ -6,6 +6,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface SalesOrder {
   id: string;
@@ -53,6 +60,42 @@ export default function SalesPage() {
     }
   }
 
+  const [showModal, setShowModal] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [customerContact, setCustomerContact] = useState("");
+  const [enquiry, setEnquiry] = useState("");
+  const [amount, setAmount] = useState("");
+
+  const handleCreateEnquiry = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customerName.trim()) return;
+
+    try {
+      const res = await fetch("/api/sales-orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customerName,
+          customerContact: customerContact || null,
+          enquiry: enquiry || null,
+          amount: amount ? parseFloat(amount) : null,
+          status: "ENQUIRY",
+        }),
+      });
+
+      if (res.ok) {
+        setShowModal(false);
+        setCustomerName("");
+        setCustomerContact("");
+        setEnquiry("");
+        setAmount("");
+        fetchSalesOrders();
+      }
+    } catch (err) {
+      console.error("Failed to create sales enquiry:", err);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -60,7 +103,7 @@ export default function SalesPage() {
           <h1 className="text-2xl font-bold tracking-tight">Sales</h1>
           <p className="text-muted-foreground">Track enquiries and quotations</p>
         </div>
-        <Button className="gap-1.5">
+        <Button onClick={() => setShowModal(true)} className="gap-1.5 bg-violet-600 hover:bg-violet-500 text-white font-bold rounded-xl active:scale-95 spring-transition">
           <Plus className="w-4 h-4" />
           New Enquiry
         </Button>
@@ -121,6 +164,59 @@ export default function SalesPage() {
           ))
         )}
       </div>
+
+      {/* New Enquiry Modal */}
+      <Dialog open={showModal} onOpenChange={setShowModal}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">Create New Sales Enquiry</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleCreateEnquiry} className="space-y-4 pt-2">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Customer Name *</Label>
+              <Input
+                placeholder="e.g. ABC Corporation"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Contact Person</Label>
+              <Input
+                placeholder="e.g. Rahul Mehta (+91 98765 43210)"
+                value={customerContact}
+                onChange={(e) => setCustomerContact(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Enquiry Details</Label>
+              <Input
+                placeholder="e.g. LED lighting requirement for 50 offices"
+                value={enquiry}
+                onChange={(e) => setEnquiry(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-bold uppercase tracking-wider">Quotation Amount (INR)</Label>
+              <Input
+                type="number"
+                placeholder="e.g. 450000"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-3">
+              <Button type="button" variant="outline" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" className="bg-violet-600 hover:bg-violet-500 text-white font-bold">
+                Save Enquiry
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
