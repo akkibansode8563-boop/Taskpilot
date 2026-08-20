@@ -102,10 +102,10 @@ export async function GET() {
     });
 
     // Calculate days overdue for each overdue task
-    const overdueTasksWithDays = overdueTasks.map((task) => ({
+    const overdueTasksWithDays = overdueTasks.map((task: any) => ({
       ...task,
       daysOverdue: task.dueDate
-        ? Math.ceil((startOfDay.getTime() - task.dueDate.getTime()) / (24 * 60 * 60 * 1000))
+        ? Math.ceil((startOfDay.getTime() - new Date(task.dueDate).getTime()) / (24 * 60 * 60 * 1000))
         : 0,
     }));
 
