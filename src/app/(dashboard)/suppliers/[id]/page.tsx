@@ -228,16 +228,16 @@ export default function SupplierDetailPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="orders" className="gap-1.5">
             <Package className="w-4 h-4" />
-            Orders ({supplier._count.orders})
+            Orders ({supplier._count?.orders || 0})
           </TabsTrigger>
           <TabsTrigger value="products" className="gap-1.5">
             <ShoppingCart className="w-4 h-4" />
-            Products ({supplier._count.products})
+            Products ({supplier._count?.products || 0})
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="orders" className="space-y-3">
-          {supplier.orders.length === 0 ? (
+          {!supplier.orders || supplier.orders.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center text-muted-foreground">
                 No orders with this supplier yet
