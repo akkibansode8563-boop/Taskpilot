@@ -1,0 +1,508 @@
+// TaskPilot — Prisma Schema v2.0
+// 12 core entities for work & task management with Import/Purchase focus
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Enums ──────────────────────────────────────────────
+
+enum TaskStatus {
+  PLANNED
+  IN_PROGRESS
+  WAITING
+  COMPLETED
+  CANCELLED
+}
+
+enum TaskPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum OrderType {
+  CHINA_IMPORT
+  DOMESTIC_PURCHASE
+}
+
+enum OrderStatus {
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum ChinaImportStage {
+  REQUIREMENT
+  QUOTATION
+  NEGOTIATION
+  SAMPLE
+  PI
+  PO
+  PAYMENT
+  PRODUCTION
+  INSPECTION
+  READY_TO_SHIP
+  BOOKING
+  ETD
+  BL_AWB
+  CUSTOMS_DOCUMENTS
+  CHA_CUSTOMS
+  DUTY_CHARGES
+  CLEARANCE
+  DELIVERY_GRN
+}
+
+enum DomesticPurchaseStage {
+  REQUIREMENT
+  QUOTATION
+  PO
+  SUPPLIER_CONFIRMATION
+  PAYMENT
+  DISPATCH
+  DELIVERY
+  GRN
+}
+
+enum ShipmentStatus {
+  BOOKING
+  BOOKED
+  READY
+  IN_TRANSIT
+  ARRIVED
+  CUSTOMS
+  CLEARED
+  DELIVERED
+}
+
+enum DocumentType {
+  PI
+  PO
+  COMMERCIAL_INVOICE
+  PACKING_LIST
+  BL_AWB
+  COO
+  CUSTOMS
+  CHA
+  PAYMENT_PROOF
+  OTHER
+}
+
+enum PaymentType {
+  ADVANCE
+  PARTIAL
+  FINAL
+  BALANCE
+}
+
+enum NotificationType {
+  TASK_REMINDER
+  OVERDUE_ALERT
+  FOLLOW_UP
+  MILESTONE
+  ETA_ALERT
+  DAILY_SUMMARY
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  MISSED
+}
+
+enum ModuleType {
+  TASK
+  IMPORT_PURCHASE
+  SALES
+  SERVICE
+}
+
+enum SalesStatus {
+  ENQUIRY
+  QUOTATION_SENT
+  FOLLOW_UP
+  ORDER_RECEIVED
+  COMPLETED
+  LOST
+}
+
+enum ServiceStatus {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  VISIT_SCHEDULED
+  COMPLETED
+  CLOSED
+}
+
+// ─── Models ─────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  phone         String?
+  avatarUrl     String?
+  timezone      String    @default("Asia/Kolkata")
+  currency      String    @default("INR")
+  dateFormat    String    @default("dd/MM/yyyy")
+  weekStartsOn  Int       @default(1)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  orders            Order[]
+  tasks             Task[]
+  suppliers         Supplier[]
+  products          Product[]
+  notifications     Notification[]
+  activityLogs      TaskActivity[]
+  documents         Document[]
+  payments          Payment[]
+  landedCosts       LandedCostEntry[]
+  shipments         Shipment[]
+  salesOrders       SalesOrder[]
+  serviceTickets    ServiceTicket[]
+}
+
+model Order {
+  id              String              @id @default(cuid())
+  orderNumber     String              @unique
+  type            OrderType
+  status          OrderStatus         @default(ACTIVE)
+  title           String
+  description     String?
+  supplierId      String?
+  currency        String              @default("USD")
+  exchangeRate    Float               @default(1.0)
+  exchangeRateAtPayment Float?
+  piRef           String?
+  poRef           String?
+  paymentTerms    String?
+  chinaStage      ChinaImportStage?
+  domesticStage   DomesticPurchaseStage?
+  currentStage    String?
+  stageProgress   Float               @default(0)
+  dueDate         DateTime?
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  supplier        Supplier?           @relation(fields: [supplierId], references: [id])
+
+  orderItems      OrderItem[]
+  tasks           Task[]
+  documents       Document[]
+  payments        Payment[]
+  shipments       Shipment[]
+  landedCosts     LandedCostEntry[]
+
+  @@index([userId])
+  @@index([type])
+  @@index([status])
+  @@index([supplierId])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  sku         String?
+  name        String
+  quantity    Float
+  unit        String   @default("pcs")
+  unitCost    Float
+  totalCost   Float
+  hsCode      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId     String
+  product     Product? @relation(fields: [productId], references: [id])
+  productId   String?
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model Task {
+  id              String       @id @default(cuid())
+  title           String
+  description     String?
+  status          TaskStatus   @default(PLANNED)
+  priority        TaskPriority @default(MEDIUM)
+  module          ModuleType   @default(TASK)
+  taskType        String?
+  dueDate         DateTime?
+  dueTime         String?
+  reminderAt      DateTime?
+  reminderLead    Int?
+  isRecurring     Boolean      @default(false)
+  recurrenceRule  String?
+  owner           String?
+  contactName     String?
+  contactCompany  String?
+  nextAction      String?
+  waitingFor      String?
+  followUpDate    DateTime?
+  tags            String?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  order           Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId         String?
+  shipment        Shipment?    @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  shipmentId      String?
+
+  activities      TaskActivity[]
+  notifications   Notification[]
+  documents       Document[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([orderId])
+  @@index([module])
+}
+
+model TaskActivity {
+  id          String   @id @default(cuid())
+  action      String
+  fromValue   String?
+  toValue     String?
+  note        String?
+  createdAt   DateTime @default(now())
+
+  task        Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId      String
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([taskId])
+}
+
+model Supplier {
+  id              String    @id @default(cuid())
+  name            String
+  country         String?
+  city            String?
+  contacts        Json?
+  paymentTerms    String?
+  website         String?
+  notes           String?
+  performanceScore Float?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  orders          Order[]
+  products        Product[]
+
+  @@index([userId])
+  @@index([name])
+}
+
+model Product {
+  id              String    @id @default(cuid())
+  sku             String?
+  name            String
+  brand           String?
+  hsCode          String?
+  unit            String    @default("pcs")
+  unitCost        Float?
+  weight          Float?
+  cbm             Float?
+  description     String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  defaultSupplier Supplier? @relation(fields: [defaultSupplierId], references: [id])
+  defaultSupplierId String?
+  orderItems      OrderItem[]
+
+  @@index([userId])
+  @@index([sku])
+  @@index([hsCode])
+}
+
+model Shipment {
+  id              String          @id @default(cuid())
+  shipmentNumber  String?
+  shippingMode    String?
+  forwarder       String?
+  containerNo     String?
+  bookingDate     DateTime?
+  etd             DateTime?
+  eta             DateTime?
+  actualDeparture DateTime?
+  actualArrival   DateTime?
+  blAwbNumber     String?
+  portOfLoading   String?
+  portOfDestination String?
+  status          ShipmentStatus  @default(BOOKING)
+  notes           String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  order           Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId         String
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+  tasks           Task[]
+
+  @@index([orderId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  type        DocumentType
+  fileName    String
+  fileUrl     String
+  fileSize    Int?
+  mimeType    String?
+  notes       String?
+  uploadedAt  DateTime     @default(now())
+
+  order       Order?       @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  orderId     String?
+  task        Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  taskId      String?
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String
+
+  @@index([orderId])
+  @@index([taskId])
+  @@index([userId])
+}
+
+model Payment {
+  id              String      @id @default(cuid())
+  amount          Float
+  currency        String      @default("USD")
+  exchangeRate    Float       @default(1.0)
+  paymentDate     DateTime
+  type            PaymentType
+  reference       String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+
+  order           Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId         String
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  @@index([orderId])
+  @@index([userId])
+}
+
+model LandedCostEntry {
+  id              String   @id @default(cuid())
+  component       String
+  amount          Float
+  currency        String   @default("USD")
+  exchangeRate    Float    @default(1.0)
+  allocationMethod String?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId         String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  @@index([orderId])
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  type            NotificationType
+  entityType      String
+  entityId        String
+  title           String
+  message         String?
+  scheduledAt     DateTime
+  sentAt          DateTime?
+  status          NotificationStatus @default(PENDING)
+  retryCount      Int              @default(0)
+  idempotencyKey  String           @unique
+  createdAt       DateTime         @default(now())
+
+  task            Task?            @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  taskId          String?
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([idempotencyKey])
+}
+
+// ─── Sales Module (Lightweight) ─────────────────────────
+
+model SalesOrder {
+  id              String      @id @default(cuid())
+  customerName    String
+  customerContact String?
+  customerEmail   String?
+  customerPhone   String?
+  enquiry         String?
+  quotation       String?
+  status          SalesStatus @default(ENQUIRY)
+  followUpDate    DateTime?
+  dueDate         DateTime?
+  amount          Float?
+  currency        String      @default("INR")
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  @@index([userId])
+  @@index([status])
+}
+
+// ─── Service Module (Lightweight) ───────────────────────
+
+model ServiceTicket {
+  id              String        @id @default(cuid())
+  customerName    String
+  customerContact String?
+  complaint       String?
+  description     String?
+  engineer        String?
+  priority        TaskPriority  @default(MEDIUM)
+  status          ServiceStatus @default(OPEN)
+  visitDate       DateTime?
+  followUpDate    DateTime?
+  closureNotes    String?
+  closedAt        DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String
+
+  @@index([userId])
+  @@index([status])
+}
